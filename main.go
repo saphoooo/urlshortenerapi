@@ -29,6 +29,7 @@ func shortenerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Base62 encoding doesn't work with the URL scheme, so I remove it for the encoding
 	u, err := url.Parse(string(body))
 	if err != nil {
 		log.Println(err)
@@ -43,6 +44,7 @@ func shortenerHandler(w http.ResponseWriter, r *http.Request) {
 	conn := pool.Get()
 	defer conn.Close()
 
+	// Create a new entry in Redis only if the key (base62 encoded URL) doesn't exist
 	exists, err := redis.Int(conn.Do("EXISTS", shortURL))
 	if err != nil {
 		log.Println(err)
