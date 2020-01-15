@@ -6,5 +6,5 @@ The schema of the API is quite simple:
 
 | URL          | Verbs | Success | Failure  |
 |--------------|:-----:|--------:|---------:|
-| /api/v1/new  | POST  | 200     | 500, 404 |
+| /api/v1/new  | POST  | 201     | 500, 404 |
 | /api/v1/:url | GET   | 301     | 404      |
