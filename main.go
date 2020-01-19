@@ -16,7 +16,7 @@ import (
 
 const base = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-type shortenedURL struct {
+type url struct {
 	URL string `json:"url,omitempty"`
 }
 
@@ -68,7 +68,7 @@ func shortenerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	url := &shortenedURL{URL: shortURL}
+	url := &url{URL: shortURL}
 	resp, err := json.Marshal(url)
 	if err != nil {
 		log.Println(err)
@@ -100,14 +100,19 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 		return
 	}
-	url, err := redis.String(conn.Do("GET", v["url"]))
+	u, err := redis.String(conn.Do("GET", v["url"]))
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	log.Printf("redirecting to %s...\n", url)
-	http.Redirect(w, r, url, http.StatusMovedPermanently)
+	originalurl := &url{URL: u}
+	resp, err := json.Marshal(originalurl)
+	if err != nil {
+		log.Println(err)
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "%s\n", resp)
 }
 
 func main() {
