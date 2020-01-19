@@ -6,21 +6,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/catinello/base62"
-	"github.com/gomodule/redigo/redis"
 	"github.com/gorilla/mux"
 )
 
 func shortenerHandler(w http.ResponseWriter, r *http.Request) {
-	pool := &redis.Pool{
-		MaxIdle:     10,
-		IdleTimeout: 240 * time.Second,
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", "localhost:6379")
-		},
-	}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Println(err)
@@ -30,25 +21,12 @@ func shortenerHandler(w http.ResponseWriter, r *http.Request) {
 
 	longURL := string(body)
 	shortURL := base62.Encode(strToInt(longURL))
-	log.Printf("New short URL %s, for %s...", shortURL, longURL)
-
-	conn := pool.Get()
-	defer conn.Close()
-
-	// Create a new entry in Redis only if the key (base62 URL encoded) doesn't exist
-	exists, err := redis.Int(conn.Do("EXISTS", shortURL))
+	status, err := dbSet(dbDriver, shortURL, longURL)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	} else if exists == 0 {
-		_, err = conn.Do("SET", shortURL, longURL)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
+		http.Error(w, http.StatusText(status), status)
 	}
+	log.Printf("New shortened url \"%s\", for original url %s...", shortURL, longURL)
 
 	u := &url{URL: shortURL}
 	resp, err := json.Marshal(u)
