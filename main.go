@@ -77,7 +77,7 @@ func shortenerHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s\n", resp)
 }
 
-func redirectHandler(w http.ResponseWriter, r *http.Request) {
+func originalHandler(w http.ResponseWriter, r *http.Request) {
 	pool := &redis.Pool{
 		MaxIdle:     10,
 		IdleTimeout: 240 * time.Second,
@@ -118,6 +118,6 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/api/v1/new", shortenerHandler).Methods("POST")
-	r.HandleFunc("/api/v1/{url}", redirectHandler).Methods("GET")
+	r.HandleFunc("/api/v1/{url}", originalHandler).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8000", r))
 }
