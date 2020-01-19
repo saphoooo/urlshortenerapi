@@ -68,8 +68,8 @@ func shortenerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	url := &url{URL: shortURL}
-	resp, err := json.Marshal(url)
+	u := &url{URL: shortURL}
+	resp, err := json.Marshal(u)
 	if err != nil {
 		log.Println(err)
 	}
