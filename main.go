@@ -1,18 +1,35 @@
 package main
 
 import (
-	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
+	"strings"
 	"time"
 
 	"github.com/catinello/base62"
 	"github.com/gomodule/redigo/redis"
 	"github.com/gorilla/mux"
 )
+
+const base = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+type shortenedURL struct {
+	URL string `json:"url,omitempty"`
+}
+
+func strToInt(str string) int {
+	res := 0
+	for _, r := range str {
+		res = (62 * res) + strings.Index(base, string(r))
+	}
+	if res < 0 {
+		return -res
+	}
+	return res
+}
 
 func shortenerHandler(w http.ResponseWriter, r *http.Request) {
 	pool := &redis.Pool{
@@ -29,22 +46,14 @@ func shortenerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Base62 encoding doesn't work with the URL scheme, so I remove it for the encoding
-	u, err := url.Parse(string(body))
-	if err != nil {
-		log.Println(err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
 	longURL := string(body)
-	shortURL := base62.Encode(int(binary.BigEndian.Uint64([]byte(u.Host + u.Path))))
-	log.Printf("New short URL created %s for %s...", shortURL, longURL)
+	shortURL := base62.Encode(strToInt(longURL))
+	log.Printf("New short URL %s, for %s...", shortURL, longURL)
 
 	conn := pool.Get()
 	defer conn.Close()
 
-	// Create a new entry in Redis only if the key (base62 encoded URL) doesn't exist
+	// Create a new entry in Redis only if the key (base62 URL encoded) doesn't exist
 	exists, err := redis.Int(conn.Do("EXISTS", shortURL))
 	if err != nil {
 		log.Println(err)
@@ -59,8 +68,13 @@ func shortenerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	url := &shortenedURL{URL: shortURL}
+	resp, err := json.Marshal(url)
+	if err != nil {
+		log.Println(err)
+	}
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "%v\n", shortURL)
+	fmt.Fprintf(w, "%s\n", resp)
 }
 
 func redirectHandler(w http.ResponseWriter, r *http.Request) {
