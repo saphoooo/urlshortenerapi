@@ -1,54 +1,126 @@
 package main
 
 import (
+	"errors"
 	"testing"
 )
 
 func TestBase(t *testing.T) {
 	want := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	if base != want {
-		t.Errorf("base = \"%s\", want = \"%s\"", base, want)
+	got := base
+	if got != want {
+		t.Errorf("want: %q, but got: %q", want, base)
 	}
 }
 
-type mockDriver struct{}
-
-var mDriver *mockDriver
+type mockDriver struct {
+	returnString string
+	returnVal    int
+	returnErr    error
+}
 
 func (m *mockDriver) Get(s string) (string, int, error) {
-	return s, 200, nil
+	return m.returnString, m.returnVal, m.returnErr
 }
 
 func (m *mockDriver) Set(short, long string) (int, error) {
-	return 200, nil
+	return m.returnVal, m.returnErr
 }
 
-func TestDBGet(t *testing.T) {
-	s, i, err := dbGet(mDriver, "this is a test")
-	if s != "this is a test" {
-		t.Errorf("want this is a test, but got %s", s)
+func TestDBGet_string(t *testing.T) {
+	mDriver := &mockDriver{
+		returnString: "http://foo.example.com",
+		returnVal:    200,
+		returnErr:    nil,
+	}
+	want := mDriver.returnString
+	got, i, err := dbGet(mDriver, want)
+	if got != want {
+		t.Errorf("want: %q, but got: %q", want, got)
 	}
 	if i != 200 {
-		t.Errorf("want 200, but got %d", i)
+		t.Errorf("want: 200, but got: %d", i)
 	}
 	if err != nil {
-		t.Errorf("want nil, but got %v", err.Error())
+		t.Errorf("want: nil, but got: %v", err)
 	}
 }
 
-func TestDBSet(t *testing.T) {
-	i, err := dbSet(mDriver, "foo", "bar")
-	if i != 200 {
-		t.Errorf("want 200, but got %d", i)
+func TestDBGet_err(t *testing.T) {
+	mDriver := &mockDriver{
+		returnString: "",
+		returnVal:    404,
+		returnErr:    errors.New("whoops, something wrong happens"),
+	}
+	want := mDriver.returnString
+	got, i, err := dbGet(mDriver, want)
+	if got != want {
+		t.Errorf("want: %q, but got: %q", want, got)
+	}
+	if i != 404 {
+		t.Errorf("want: 404, but got: %d", i)
 	}
 	if err != nil {
-		t.Errorf("want nil, but got %v", err.Error())
+		if err.Error() != mDriver.returnErr.Error() {
+			t.Errorf("want: %q, but got: %q", mDriver.returnErr, err.Error())
+		}
 	}
 }
 
-func TestStrToInt(t *testing.T) {
-	result := strToInt("a")
-	if result != 10 {
-		t.Errorf("want 10, but got %d", result)
+func TestDBSet_string(t *testing.T) {
+	mDriver := &mockDriver{
+		returnString: "",
+		returnVal:    200,
+		returnErr:    nil,
+	}
+	want := 200
+	got, err := dbSet(mDriver, "foo", "bar")
+	if got != want {
+		t.Errorf("want: %d, but got: %d", want, got)
+	}
+	if err != nil {
+		t.Errorf("want: nil, but got: %v", err)
+	}
+}
+
+func TestDBSet_err(t *testing.T) {
+	mDriver := &mockDriver{
+		returnString: "",
+		returnVal:    404,
+		returnErr:    errors.New("whoops, something wrong happens"),
+	}
+	want := 404
+	got, err := dbSet(mDriver, "foo", "bar")
+	if got != want {
+		t.Errorf("want: %d, but got: %d", want, got)
+	}
+	if err != nil {
+		if err.Error() != mDriver.returnErr.Error() {
+			t.Errorf("want: %q, but got: %q", mDriver.returnErr, err.Error())
+		}
+	}
+}
+
+func TestStrToInt_shortString(t *testing.T) {
+	want := 10
+	got := strToInt("a")
+	if got != want {
+		t.Errorf("want: %d, but got: %d", want, got)
+	}
+}
+
+func TestStrToInt_longString(t *testing.T) {
+	want := strToInt("https://azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN")
+	got := strToInt("https://nbvcxwmlkjhgfdsqpoiuytrezaNBVCXWMLKJHGFDSQPOIUYTREZAnbvcxwmlkjhgfdsqpoiuytrezaNBVCXWMLKJHGFDSQPOIUYTREZAnbvcxwmlkjhgfdsqpoiuytrezaNBVCXWMLKJHGFDSQPOIUYTREZAnbvcxwmlkjhgfdsqpoiuytrezaNBVCXWMLKJHGFDSQPOIUYTREZAnbvcxwmlkjhgfdsqpoiuytrezaNBVCXWMLKJHGFDSQPOIUYTREZAnbvcxwmlkjhgfdsqpoiuytrezaNBVCXWMLKJHGFDSQPOIUYTREZAnbvcxwmlkjhgfdsqpoiuytrezaNBVCXWMLKJHGFDSQPOIUYTREZAnbvcxwmlkjhgfdsqpoiuytrezaNBVCXWMLKJHGFDSQPOIUYTREZAnbvcxwmlkjhgfdsqpoiuytrezaNBVCXWMLKJHGFDSQPOIUYTREZA")
+	if got == want {
+		t.Errorf("%d must be different from %d", want, got)
+	}
+}
+
+func TestStrToInt_rune(t *testing.T) {
+	want := 0
+	got := strToInt("://*%%*$$^&`")
+	if got == want {
+		t.Errorf("want %d, but got %d", want, got)
 	}
 }
